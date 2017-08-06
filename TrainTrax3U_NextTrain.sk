@@ -1,0 +1,113 @@
+options:
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # TrainTrax3U Train Tracker Assistant               #
+    # // NextTrain - Estimated Arrival and Dest Assist  #
+    # // Requires TrainTrax3U_[Core,CodumpMgmt,Periodic]#
+    # // Requires SigNelson                             #
+    #                                                   #
+    # Author: MinecraftSBC, blackon108 (Algorithm)      #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    prefix: &2[TRTRX-NT] &r
+    build: A17Y28R26
+    license: Copyright © 2017 SBCRET <SBCRET@gmx.com> under DBAD v1.1 as published by Philip Sturgeon.    
+    
+    # Sign Data TRTRX_NT:NT,D;1;p0 nsl_dn 230 - 0.3 m:Default c:Express
+
+on rightclick on sign:
+    set {_id} to "%x coordinate of clicked block%,%y coordinate of clicked block%,%z coordinate of clicked block%"    
+    
+    if {TrainTrax3.Player.Status::%player%} = "NT.Sign.1": # Dest
+        set {SigNelson.Sign.Line3::%{_id}%} to "TRTRX_NT\NT;D;1;%{TrainTrax3.Player.Input::%player%}%"
+        set {SigNelson.Sign.Line4::%{_id}%} to "TRTRX_NT\NT;D;2;%{TrainTrax3.Player.Input::%player%}%"
+        message "{@prefix} Right click the RIGHT (ETA) sign."
+        set {TrainTrax3.Player.Status::%player%} to "NT.Sign.2"
+        
+    else if {TrainTrax3.Player.Status::%player%} = "NT.Sign.2":
+        set {SigNelson.Sign.Line3::%{_id}%} to "TRTRX_NT\NT;E;1;%{TrainTrax3.Player.Input::%player%}%"
+        set {SigNelson.Sign.Line4::%{_id}%} to "TRTRX_NT\NT;E;2;%{TrainTrax3.Player.Input::%player%}%"
+        message "{@prefix} Setup complete."
+        delete {TrainTrax3.Player.Status::%player%}
+        delete {TrainTrax3.Player.Input::%player%} 
+        
+
+function TRTRX_GetNextTrain(dump: string, mile: number, dir: string, speed: number, dest: string) :: string:
+    set {_trains::*} to {_dump} split at ";"
+    delete {_trains::1} # Remove Mile Header
+    set {_dests::*} to {_dest} split at " "
+    loop {_trains::*}:
+        set {_train::*} to loop-value split at ","
+        if {_dir} = "+":
+            set {_eta} to ({_train::1} parsed as number - {_mile}) / ({_speed} * 15)
+        else if {_dir} = "-":
+            set {_eta} to ({_mile} - {_train::1} parsed as integer) / ({_speed} * 15)
+        if {_eta} > 0: # Discard negative ETA
+            set {_next_train::%{_eta}%} to {_train::2} # Counting Sort
+    loop {_next_train::*}:
+        loop {_dests::*}:
+            set {_dest::*} to loop-value-2 split at ":" # Get Config:Destination
+            if index of {_dest::1} in loop-value-1 > 0: # Config Found
+                add "%{_dest::2}%,%loop-index-1%" to {_output::*}
+                stop this section
+    return join {_output::*} with ";"
+
+    
+function TRTRX_GetNextTrainS(x: string) :: string:
+    set {_args::*} to {_x} split at " "
+    set {_t1::*} to {_args::*}
+    if size of {_t1::*} > 6:
+        loop size of {_t1::*} - 6 times:
+            set {_t1::6} to "%{_t1::6}% %{_t1::7}%" # Merge Next to Current
+            delete {_t1::7}
+    set {_param::*} to {_t1::*}
+    if {_args::1} = "p0":
+        return "%TRTRX_GetNextTrain(TRTRX_GetDump({_param::2}),{_param::3} parsed as number, {_param::4}, {_param::5} parsed as number, {_param::6})%"
+
+
+function TRTRX_NTEval(x: string) :: string:
+    set {_args::*} to {_x} split at ";"
+    set {_output} to " "
+    if {_args::1} = "NT":
+        set {_dump::*} to TRTRX_GetNextTrainS({_args::4}) split at ";"
+        if {_args::3} parsed as number > size of {_dump::*}:
+            set {_output} to " "
+        else if "%{_dump::*}%" contains "<none>":
+            set {_output} to " "
+        else:
+            set {_res::*} to {_dump::%{_args::3}%} split at ","
+            if {_args::2} = "D":
+                set {_output} to {_res::1}
+            else if {_args::2} = "E":
+                if {_res::2} parsed as number < 20:
+                    set {_output} to "Arr/Dep"
+                else:
+                    set {_output} to "%floor({_res::2} parsed as number)% secs"
+    replace all "<none>" with " " in {_output}
+    replace all "_" with " " in {_output}
+    return "%{_output}%"
+    
+    
+command /trx-nt <string>:
+    # Sample >> /trtrx-nt sign p0 nsl_dn 230 - 0.3 m:Default c:Express
+    aliases: /trxnt, /trtrx-nt, /trtrxnt
+    usage: /trx-nt < rdump / view / cancel / sign / remove > < ... >
+    trigger:
+        set {_args::*} to arg-1 split at " "
+        set {_t1::*} to {_args::*}
+        delete {_t1::1}
+        if size of {_t1::*} > 6:
+            loop size of {_t1::*} - 6 times:
+                set {_t1::6} to "%{_t1::6}% %{_t1::7}%" # Merge Next to Current
+                delete {_t1::7}
+        set {_param} to "%join {_t1::*} with "" ""%"
+        if {_args::1} = "rdump":
+            message "{@prefix} = NEXT TRAIN"
+            message "{@prefix} PARAM > %{_param}%"
+            message "{@prefix} REAL TIME DUMP (P0) > %TRTRX_GetNextTrainS({_param})%"
+        else if {_args::1} = "cancel":
+            message "{@prefix} Operation cancelled."
+            delete {TrainTrax3.Player.Status::%player%}
+            delete {TrainTrax3.Player.Input::%player%}
+        else if {_args::1} = "setup":
+            message "{@prefix} Right click the LEFT (Destination) sign."
+            set {TrainTrax3.Player.Status::%player%} to "NT.Sign.1"
+            set {TrainTrax3.Player.Input::%player%} to {_param}

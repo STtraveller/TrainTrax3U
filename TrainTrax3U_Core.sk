@@ -1,0 +1,195 @@
+options:
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # TrainTrax3U Train Tracker Assistant               #
+    # // Core - Point Zero and Mile Dump                #
+    #                                                   #
+    # Author: MinecraftSBC, blackon108 (Algorithm)      #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    build: A17Y14R12
+    license: Copyright © 2017 SBCRET <SBCRET@gmx.com> under DBAD v1.1 as published by Philip Sturgeon.
+    
+function FindTrain(x: integer, y: integer, z: integer, dir: string, itin: integer) :: string:
+    
+    # Sample Dump >> S,2097;43,mmmmmmmmmmmmmmmmmmmmmm;1414,mmmmmmmmmmmmmmmmmmmmmm
+    # Explanation: SIGKILL Exit, 2097m Scanned; Mile 43: 22 x minecart; Mile 1414: 22 x minecart
+    
+    # Turning Info
+    set {_turn::e} to "s,e,e,e,s,n,e,s,n,e"
+    set {_turn::s} to "s,w,w,e,s,s,s,s,w,e"
+    set {_turn::w} to "s,w,w,w,s,n,s,w,w,n"
+    set {_turn::n} to "n,w,w,e,n,n,e,w,n,n"
+    
+    # Location Init
+    set {_loc} to location({_x},{_y},{_z},world "world")
+    set {_cdir} to {_dir}
+    
+    # Train Config Init
+    set {_train_config} to ""
+    
+    # Output Init.
+    set {_trains} to ""
+    
+    loop {_itin} times: 
+                
+        # Items to check
+        set {_has_rail} to false
+        set {_has_train} to false
+        
+        loop blocks between block 3 blocks above {_loc} and block 3 blocks below {_loc}:
+            
+            if loop-block is powered rail or detector rail or rail or pressure plate:
+                
+                # Continuous Track
+                set {_has_rail} to true  
+                set {_loc} to location of loop-block
+                
+                # Cart check
+                loop entities in radius 1.5 of {_loc}:
+                                        
+                    # Linking trains
+                    if loop-entity is minecart:
+                        set {_has_train} to true
+                    
+                    # Train occuping half block or more
+                    if distance between loop-entity and {_loc} <= 0.665:
+                        if loop-entity is chest minecart:
+                            set {_train_config} to "%{_train_config}%c" 
+                            stop this section
+                        else if loop-entity is hopper minecart:
+                            set {_train_config} to "%{_train_config}%h" 
+                            stop this section
+                        else if loop-entity is furnace minecart:
+                            set {_train_config} to "%{_train_config}%f" 
+                            stop this section
+                        else if loop-entity is TNT minecart:
+                            set {_train_config} to "%{_train_config}%t" 
+                            stop this section
+                        else if loop-entity is minecart:
+                            set {_train_config} to "%{_train_config}%m" 
+                            stop this section
+     
+                # Move Prep
+                if loop-block is (powered rail or detector rail or pressure plate):
+                    set {_next_dir} to {_cdir}
+                else:
+                    set {_t::*} to {_turn::%{_cdir}%} split at ","
+                    set {_next_dir} to {_t::%data value of loop-block + 1%}  
+
+                stop this section
+        
+        # Train disconnected
+        if {_has_train} = false:
+            if length of {_train_config} > 0:
+                replace all "<none>" with "" in {_trains}
+                replace all "<none>" with "" in {_train_config}
+                set {_trains} to "%{_trains}%;%loop-number - 1%,%{_train_config}%"
+                set {_train_config} to ""
+
+        # Duploc Exit
+        if loop-number > 2:
+            if distance between location({_x},{_y},{_z},world "world") and {_loc} <= 1.25:
+                return "D,%loop-number%%{_trains}%"
+
+        # EOL Exit
+        if {_has_rail} = false:
+            return "E,%loop-number%%{_trains}%"
+            
+        # Move
+        if {_next_dir} = "e":
+            set {_loc} to location 1 meter east of {_loc}
+        else if {_next_dir} = "s":
+            set {_loc} to location 1 meter south of {_loc}
+        else if {_next_dir} = "w":
+            set {_loc} to location 1 meter west of {_loc}
+        else if {_next_dir} = "n":
+            set {_loc} to location 1 meter north of {_loc}
+        set {_cdir} to {_next_dir}
+        
+    # SIGKILL Exit
+    return "S,%{_itin}%%{_trains}%"
+
+
+
+function FindMile(x: integer, y: integer, z: integer, dir: string, itin: integer) :: string:
+    
+    # Sample Dump >> S,2;1,179,43,697,n,r,0;2,179,43,696,n,r,0
+    # Explanation: SIGKILL Exit, 2 m scanned; Mile 1 - Loc(179,43,697) [N] rail:0; Mile 2 - Loc(179,43,696) [N] rail:0
+    
+    # Turning Info
+    set {_turn::e} to "s,e,e,e,s,n,e,s,n,e"
+    set {_turn::s} to "s,w,w,e,s,s,s,s,w,e"
+    set {_turn::w} to "s,w,w,w,s,n,s,w,w,n"
+    set {_turn::n} to "n,w,w,e,n,n,e,w,n,n"
+    
+    # Location Init
+    set {_loc} to location({_x},{_y},{_z},world "world")
+    set {_cdir} to {_dir}
+
+    # Output Init
+    set {_output} to ""
+    
+    loop {_itin} times: 
+                
+        # Items to check
+        set {_has_rail} to false
+        
+        loop blocks between block 3 blocks above {_loc} and block 3 blocks below {_loc}:
+            
+            if loop-block is powered rail or detector rail or rail or pressure plate:
+                
+                # Continuous Track
+                set {_has_rail} to true  
+                set {_loc} to location of loop-block
+                
+                # Check Rail Type
+                if loop-block is powered rail:
+                    set {_rail_type} to "p"
+                else if loop-block is detector rail:
+                    set {_rail_type} to "d"
+                else if loop-block is pressure plate:
+                    set {_rail_type} to "s"
+                else:
+                    set {_rail_type} to "r"
+                
+                # Write to output
+                set {_output} to "%{_output}%;%loop-number%,%x coordinate of {_loc}%,%y coordinate of {_loc}%,%z coordinate of {_loc}%,%{_cdir}%,%{_rail_type}%,%data value of loop-block%"
+                
+                # Move Prep
+                if loop-block is (powered rail or detector rail or pressure plate):
+                    set {_next_dir} to {_cdir}
+                else:
+                    set {_t::*} to {_turn::%{_cdir}%} split at ","
+                    set {_next_dir} to {_t::%data value of loop-block + 1%}  
+
+                stop this section
+
+        # Duploc Exit
+        if loop-number > 2:
+            if distance between location({_x},{_y},{_z},world "world") and {_loc} <= 1.25:
+                return "D,%loop-number%%{_output}%"
+
+        # EOL Exit
+        if {_has_rail} = false:
+            return "E,%loop-number%%{_output}%"
+            
+        # Move
+        if {_next_dir} = "e":
+            set {_loc} to location 1 meter east of {_loc}
+        else if {_next_dir} = "s":
+            set {_loc} to location 1 meter south of {_loc}
+        else if {_next_dir} = "w":
+            set {_loc} to location 1 meter west of {_loc}
+        else if {_next_dir} = "n":
+            set {_loc} to location 1 meter north of {_loc}
+        set {_cdir} to {_next_dir}
+        
+    # SIGKILL Exit
+    return "S,%{_itin}%%{_output}%"
+    
+
+function FindTrainS(x: string) :: string:
+    set {_args::*} to {_x} split at " "
+    if size of {_args::*} = 5:
+        return FindTrain({_args::1} parsed as integer, {_args::2} parsed as integer, {_args::3} parsed as integer, {_args::4}, {_args::5} parsed as integer)
+    else:
+        return ""

@@ -1,0 +1,78 @@
+options:
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # TrainTrax3U Train Tracker Assistant               #
+    # // MileView - Mile Route Finder and Viewer        #
+    # // Requires TrainTrax3U_Core                      #
+    #                                                   #
+    # Author: MinecraftSBC, blackon108 (Algorithm)      #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    prefix: &8[TRTRX-MV] &r
+    build: A17Y17R04
+    license: Copyright © 2017 SBCRET <SBCRET@gmx.com> under DBAD v1.1 as published by Philip Sturgeon.
+
+command /trx-mv <string> [<string>]:
+    aliases: /trxmv, /trtrx-mv, /trtrxmv
+    usage: /trx-mv < show / find > < P0 params / @P0 ident >
+    trigger:
+        if arg-1 = "show":
+            # Named Point Zero Support
+            if index of "@" in arg-2 > 0:
+                set {_p0_ident} to join arg-2 split at "@" with ""
+                if {TrainTrax3.Param.PointZero::%{_p0_ident}%} is set:
+                    set {_args::*} to {TrainTrax3.Param.PointZero::%{_p0_ident}%} split at " "
+                else:
+                    message "{@prefix} Point Zero %{_p0_ident}% could not be found. Operation aborted."
+            else:
+                set {_args::*} to arg-2 split at " "
+            message "{@prefix} Fetching Mile Data..."
+            set {_mile_data::*} to FindMile({_args::1} parsed as integer, {_args::2} parsed as integer, {_args::3} parsed as integer, {_args::4}, {_args::5} parsed as integer) split at ";"
+            message "{@prefix} Done."
+            message "{@prefix} Exit Condition: %{_mile_data::1}%"
+            delete {_mile_data::1}
+            message "{@prefix} The glowstone indicator will now indicate the scanning route."
+            make player execute "/title %player% actionbar {""text"":""Mile Data will be shown here."",""color"":""aqua""}"
+            wait 15 ticks
+            loop {_mile_data::*}:
+                set {_l1::*} to loop-value split at ","
+                set {_loc} to location({_l1::2} parsed as number,{_l1::3} parsed as number + 1,{_l1::4} parsed as number,world "world")
+                make player execute "/title %player% actionbar {""text"":""Mile %{_l1::1}% [%{_l1::5}%]: %{_loc}% (%{_l1::6}%:%{_l1::7}%)"",""color"":""aqua""}"
+                if block at {_loc} is air:
+                    set block at {_loc} to glowstone
+                    wait 2 ticks
+                    set block at {_loc} to air
+                else:
+                    wait 2 ticks
+        
+        else if arg-1 = "find":
+            # Named Point Zero Support
+            if index of "@" in arg-2 > 0:
+                set {_p0_ident} to join arg-2 split at "@" with ""                
+                if {TrainTrax3.Param.PointZero::%{_p0_ident}%} is set:
+                    set {_args::*} to {TrainTrax3.Param.PointZero::%{_p0_ident}%} split at " "
+                else:
+                    message "{@prefix} Point Zero %{_p0_ident}% could not be found. Operation aborted."                    
+            else:
+                set {_args::*} to arg-2 split at " "
+            message "{@prefix} Fetching Mile Data..."  
+            set {_mile_data::*} to FindMile({_args::1} parsed as integer, {_args::2} parsed as integer, {_args::3} parsed as integer, {_args::4}, {_args::5} parsed as integer) split at ";"
+            message "{@prefix} Done."
+            message "{@prefix} Exit Condition: %{_mile_data::1}%"
+            delete {_mile_data::1}
+            message "{@prefix} Finding nearest mile..."
+            set {_o1} to location(0,0,0,world "world") 
+            loop {_mile_data::*}:
+                set {_l1::*} to loop-value split at ","
+                set {_loc} to location({_l1::2} parsed as number,{_l1::3} parsed as number + 1,{_l1::4} parsed as number,world "world")             
+                if (distance between {_loc} and player) < (distance between {_o1} and player):
+                    set {_o1} to {_loc}
+                    set {_o2::*} to {_l1::*}
+            message "{@prefix} Nearest Mile (%distance between {_o1} and player% m): Mile %{_o2::1}% [%{_o2::5}%]: %{_o1}% (%{_o2::6}%:%{_o2::7}%)"
+            
+        else if arg-1 = "help":
+            message "{@prefix} TrainTrax3U MileView Module"
+            message ""
+            message "{@prefix} /trtrx-mv show < P0 params >"
+            message "{@prefix} ... indicates the scanning path"
+            message ""
+            message "{@prefix} /trtrx-mv find < P0 params >"
+            message "{@prefix} ... Find the closest mile to you"

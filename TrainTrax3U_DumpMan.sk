@@ -1,0 +1,45 @@
+options:
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # TrainTrax3U Train Tracker Assistant               #
+    # // DumpMan - Dump Manipuation                     #
+    # // Requires TrainTrax3U_Core                      #
+    #                                                   #
+    # Author: MinecraftSBC, blackon108 (Algorithm)      #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    build: A17Y14R01
+    license: Copyright © 2017 SBCRET <SBCRET@gmx.com> under DBAD v1.1 as published by Philip Sturgeon.
+
+function AdjustDump(dump: string, start: integer, length: integer, siding: integer) :: string:
+    set {_t1::*} to {_dump} split at ";"
+    set {_t2::*} to {_t1::1} split at ","
+    if {_length} > 0:
+        set {_multiplier} to {_length} / ({_t2::2} parsed as integer)
+    else:
+        set {_multiplier} to 1
+    set {_t1::1} to "%{_t2::1}%,%{_t2::2} parsed as integer * {_multiplier}%"
+    loop size of {_t1::*} times:
+        if loop-number > 1:
+            set {_t2::*} to {_t1::%loop-number%} split at ","
+            set {_t2::1} to "%floor(({_t2::1} parsed as integer) * {_multiplier} + {_start})%"
+            if {_siding} > 0:
+                set {_t2::1} to "%{_t2::1}%.%{_siding}%"
+            set {_t1::%loop-number%} to join {_t2::*} with ","
+    return join {_t1::*} with ";"
+
+
+function MergeDump(dump1: string, dump2: string, siding: boolean) :: string:
+    set {_d11::*} to {_dump1} split at ";"
+    set {_d21::*} to {_dump2} split at ";"
+    set {_d12::*} to {_d11::1} split at ","
+    set {_d22::*} to {_d21::1} split at ","
+    delete {_d11::1}
+    delete {_d21::1}
+    loop {_d11::*}:
+        add loop-value to {_o::*}
+    loop {_d21::*}:
+        add loop-value to {_o::*}
+    set {_o::*} to sorted {_o::*}
+    if {_siding} = true:
+        return "M,%{_d12::2}%;%join {_o::*} with "";""%"
+    else:
+        return "M,%{_d12::2} parsed as integer + {_d22::2} parsed as integer%,%join {_o::*} with "";""%"
