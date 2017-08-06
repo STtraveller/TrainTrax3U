@@ -1,0 +1,141 @@
+options:
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # SignNelson                                        #
+    # // Sign Update Assistant                          #
+    #                                                   #
+    #                                                   #
+    # Author: MinecraftSBC                              #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    prefix: &7[SigNelson] &r
+    build: A17Y28R37
+    license: Copyright © 2017 SBCRET <SBCRET@gmx.com> under DBAD v1.1 as published by Philip Sturgeon.
+    
+    # Using {SigNelson.Sign.Line1::*}
+    # Using {SigNelson.Sign.Line2::*}
+    # Using {SigNelson.Sign.Line3::*}
+    # Using {SigNelson.Sign.Line4::*}
+
+every 15 seconds:
+    if {SigNelson.Buffer::*} is set:
+        delete {SigNelson.Buffer::*}
+    
+    
+function SigNelson_Parse(x: string) :: string:
+    if {SigNelson.Buffer::%{_x}%} is set:
+        return "%{SigNelson.Buffer::%{_x}%}%"
+    set {_args::*} to {_x} split at "\"
+    if {_args::1} = "TRTRX_NT":
+        set {_output} to "%TRTRX_NTEval({_args::2})%"
+    set {SigNelson.Buffer::%{_x}%} to {_output}
+    return {_output}
+    
+    
+function SigNelson_UpdateSign(id: string) :: boolean:
+    set {_c::*} to {_id} split at ","
+    set {_loc} to location({_c::1} parsed as number, {_c::2} parsed as number, {_c::3} parsed as number, world "world")
+    if block at {_loc} is not sign:
+        delete {SigNelson.Sign.Line1::%{_id}%}
+        delete {SigNelson.Sign.Line2::%{_id}%}
+        delete {SigNelson.Sign.Line3::%{_id}%}
+        delete {SigNelson.Sign.Line4::%{_id}%}
+        return true
+    if {SigNelson.Sign.Line1::%{_id}%} is set:
+        set line 1 of block at {_loc} to "%SigNelson_Parse({SigNelson.Sign.Line1::%{_id}%})%"
+    if {SigNelson.Sign.Line2::%{_id}%} is set:
+        set line 2 of block at {_loc} to "%SigNelson_Parse({SigNelson.Sign.Line2::%{_id}%})%"
+    if {SigNelson.Sign.Line3::%{_id}%} is set:
+        set line 3 of block at {_loc} to "%SigNelson_Parse({SigNelson.Sign.Line3::%{_id}%})%"
+    if {SigNelson.Sign.Line4::%{_id}%} is set:
+        set line 4 of block at {_loc} to "%SigNelson_Parse({SigNelson.Sign.Line4::%{_id}%})%"
+    return true
+   
+   
+function SigNelson_ListSigns(x: integer) :: string:
+    loop {SigNelson.Sign.Line1::*}:
+        set {_sign::%loop-index%} to true
+    loop {SigNelson.Sign.Line2::*}:
+        set {_sign::%loop-index%} to true
+    loop {SigNelson.Sign.Line3::*}:
+        set {_sign::%loop-index%} to true
+    loop {SigNelson.Sign.Line4::*}:
+        set {_sign::%loop-index%} to true
+    loop {_sign::*}:
+        add loop-index to {_output::*}
+    return join {_output::*} with ";"
+
+    
+function SigNelson_UpdateAllSigns(x: integer) :: integer:
+    set {_signs::*} to SigNelson_ListSigns(0) split at ";"
+    set {_o} to 0
+    loop {_signs::*}:
+        SigNelson_UpdateSign(loop-value)
+        add 1 to {_o}
+    return {_o}
+
+every 20 seconds:
+    SigNelson_UpdateAllSigns(0)
+    
+on rightclick on sign:
+    set {_id} to "%x coordinate of clicked block%,%y coordinate of clicked block%,%z coordinate of clicked block%"    
+    
+    if {SigNelson.Player.Status::%player%} = "SN.View":
+        message "{@prefix} Sign %{_id}%"
+        message "{@prefix} Line 1: %{SigNelson.Sign.Line1::%{_id}%}%"
+        message "{@prefix} Line 2: %{SigNelson.Sign.Line2::%{_id}%}%"
+        message "{@prefix} Line 3: %{SigNelson.Sign.Line3::%{_id}%}%"
+        message "{@prefix} Line 4: %{SigNelson.Sign.Line4::%{_id}%}%"
+        delete {SigNelson.Player.Status::%player%}
+    
+    else if {SigNelson.Player.Status::%player%} = "SN.Set":
+        set {_args::*} to {SigNelson.Player.Input::%player%} split at "`"
+        
+        if {_args::1} = "1":
+            set {SigNelson.Sign.Line1::%{_id}%} to {_args::2}
+        
+        if {_args::1} = "2":
+            set {SigNelson.Sign.Line2::%{_id}%} to {_args::2}
+        
+        if {_args::1} = "3":
+            set {SigNelson.Sign.Line3::%{_id}%} to {_args::2}
+        
+        if {_args::1} = "4":
+            set {SigNelson.Sign.Line4::%{_id}%} to {_args::2}
+        
+        message "{@prefix} Data for line %{_args::1}% of sign %{_id}% set."
+        message "{@prefix} Param > %{_args::2}%"
+        
+        delete {SigNelson.Player.Input::%player%}        
+        delete {SigNelson.Player.Status::%player%}
+        
+    else if {SigNelson.Player.Status::%player%} = "SN.Remove":
+        delete {SigNelson.Sign.Line1::%{_id}%}
+        delete {SigNelson.Sign.Line2::%{_id}%}        
+        delete {SigNelson.Sign.Line3::%{_id}%}
+        delete {SigNelson.Sign.Line4::%{_id}%}
+        
+        message "{@prefix} All sign data removed for sign %{_id}%"
+                
+        delete {SigNelson.Player.Status::%player%}        
+
+    
+command /signelson <string> [<string>] [<string>]:
+    aliases: /sn
+    usage: /signelson < view / set / remove / cancel > < line number / ... > < ... >
+    trigger:
+        if arg-1 = "view":
+            set {SigNelson.Player.Status::%player%} to "SN.View"
+            message "{@prefix} Right click sign to view sign data."
+            message "{@prefix} /signelson cancel to cancel operation."
+        else if arg-1 = "set":
+            set {SigNelson.Player.Input::%player%} to "%arg-2%:%arg-3%"
+            set {SigNelson.Player.Status::%player%} to "SN.Set"
+            message "{@prefix} Right click sign to set sign data."
+            message "{@prefix} /signelson cancel to cancel operation."     
+        else if arg-1 = "remove":
+            set {SigNelson.Player.Status::%player%} to "SN.Remove"
+            message "{@prefix} Right click sign to remove ALL sign data."
+            message "{@prefix} /signelson cancel to cancel operation."             
+        else if arg-1 = "cancel":
+            delete {SigNelson.Player.Input::%player%}        
+            delete {SigNelson.Player.Status::%player%} 
+            message "{@prefix} Operation cancelled."           
