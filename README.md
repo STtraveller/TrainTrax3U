@@ -29,6 +29,6 @@ Something you definitely need to use this.
 Not a part of TrainTrax 3U, but it is _required by_ Next Train.
 
 ##### Sidenote...
-This project is ** discontinued ** :(
+This project is **discontinued** :(
 
 ...Feel free to do anything with it. Be sure to let me know if you have used this somewhere! :3
